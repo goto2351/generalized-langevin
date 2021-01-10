@@ -31,22 +31,23 @@ namespace generalized_langevin {
             std::size_t save_step_num;
             double delta_t;
             double temperature;
-            std::array<double,3> xi_t1, xi_tph1;
-            std::array<double,3> xi_t2, xi_tph2;
             std::normal_distribution<> xi_engine1;
             std::normal_distribution<> xi_engine2;
+            std::array<std::array<double,3>, 2> xi_t;
+            std::array<std::array<double,3>, 2> xi_tph;
 
             void step(std::size_t step_index) noexcept;
             //memo:Particleに参照渡しを指定
-            std::array<double,3> calculate_coordinate(Particle& target_particle, Particle& another_particle, std::size_t step_index) noexcept;
-            std::array<double,3> calculate_velocity(Particle& target_particle, Particle& another_particle, NewParticle& new_particle, std::size_t step_index) noexcept;
+            std::array<double,3> calculate_coordinate(Particle& target_particle,std::size_t particle_index, Particle& another_particle, std::size_t step_index) noexcept;
+            std::array<double,3> calculate_velocity(Particle& target_particle,std::size_t particle_index, Particle& another_particle, NewParticle& new_particle, std::size_t step_index) noexcept;
             //座標と速度の計算に使う関数
             std::array<double,3> grad_harmonic_potential(Particle& p1, Particle& p2);
+            std::array<double,3> grad_harmonic_potential(Particle& p1, NewParticle& p2); //memo: オーバーロード
             std::array<double,3> grad_to_force(std::array<double,3> grad);
             //摩擦項を求める関数
             std::array<double,3> calculate_friction(Particle& p, std::size_t step_index);
             double memory_func(double coefficient, double time);
-            double calculate_Iprime(Particle& p, std::size_t step_index);
+            std::array<double,3> calculate_Iprime(Particle& p, std::size_t step_index);
             void write_coordinate() noexcept;
 
             //粒子と更新用のクラスの変換
@@ -101,22 +102,22 @@ namespace generalized_langevin {
         std::normal_distribution<> init_xi_engine2(0.0, std::sqrt((2.0*friction_coefficient*K_b*temperature*delta_t)/particle2.mass));
         xi_engine2 = init_xi_engine2;
 
-        xi_t1 = {
+        xi_t[0] = {
             xi_engine1(random_engine),
             xi_engine1(random_engine),
             xi_engine1(random_engine)
         };
-        xi_tph1 = {
+        xi_tph[0] = {
             xi_engine1(random_engine),
             xi_engine1(random_engine),
             xi_engine1(random_engine)
         };
-        xi_t2 = {
+        xi_t[1] = {
             xi_engine2(random_engine),
             xi_engine2(random_engine),
             xi_engine2(random_engine)
         };
-        xi_tph2 = {
+        xi_tph[1] = {
             xi_engine2(random_engine),
             xi_engine2(random_engine),
             xi_engine2(random_engine)
@@ -160,21 +161,21 @@ namespace generalized_langevin {
         NewParticle new_particle2 = toNewParticle(particle2);
 
         //次の時刻の座標を求める
-        const auto [new_x1, new_y1, new_z1] = calculate_coordinate(particle1, particle2, step_index);
+        const auto [new_x1, new_y1, new_z1] = calculate_coordinate(particle1, 0, particle2, step_index);
         new_particle1.x = new_x1;
         new_particle1.y = new_y1;
         new_particle1.z = new_z1;
-        const auto [new_x2, new_y2, new_z2] = calculate_coordinate(particle2, particle1, step_index);
+        const auto [new_x2, new_y2, new_z2] = calculate_coordinate(particle2, 1, particle1, step_index);
         new_particle2.x = new_x2;
         new_particle2.y = new_y2;
         new_particle2.z = new_z2;
 
         //次の時刻の速度を求める
-        const auto [new_vx1, new_vy1, new_vz1] = calculate_velocity(particle1, particle2, new_particle2, step_index);
+        const auto [new_vx1, new_vy1, new_vz1] = calculate_velocity(particle1, 0, particle2, new_particle2, step_index);
         new_particle1.vx = new_vx1;
         new_particle1.vy = new_vy1;
         new_particle1.vz = new_vz1;
-        const auto [new_vx2, new_vy2, new_vz2] = calculate_velocity(particle2, particle1, new_particle1, step_index);
+        const auto [new_vx2, new_vy2, new_vz2] = calculate_velocity(particle2, 1, particle1, new_particle1, step_index);
         new_particle2.vx = new_vx2;
         new_particle2.vy = new_vy2;
         new_particle2.vz = new_vz2;
@@ -182,20 +183,55 @@ namespace generalized_langevin {
         update_particle(particle1, new_particle1, step_index);
         update_particle(particle2, new_particle2, step_index);
 
-        xi_t1 = xi_tph1;
-        xi_tph1 = {
+        xi_t[0] = xi_tph[0];
+        xi_tph[0] = {
             xi_engine1(random_engine),
             xi_engine1(random_engine),
             xi_engine1(random_engine)
         };
-        xi_t2 = xi_tph2;
-        xi_tph2 = {
+        xi_t[1] = xi_tph[1];
+        xi_tph[1] = {
             xi_engine2(random_engine),
             xi_engine2(random_engine),
             xi_engine2(random_engine)
         };
     }
-    
+
+    std::array<double,3> Simulator::calculate_coordinate(Particle& target_particle,std::size_t particle_index, Particle& another_particle, std::size_t step_index) noexcept {
+        //外力項を求める
+        std::array<double,3> grad = grad_harmonic_potential(target_particle, another_particle);
+        std::array<double,3> f = grad_to_force(grad);
+
+        //摩擦項を求める
+        std::array<double,3> I = calculate_friction(target_particle, step_index);
+
+        //更新後の座標を速度Verlet法で求める
+        const double next_x = target_particle.x + target_particle.vx[step_index - 1]*delta_t + ((delta_t*delta_t)/2.0)*(f[0]/target_particle.mass - I[0] + target_particle.mass*xi_t[particle_index][0]);
+        const double next_y = target_particle.y + target_particle.vy[step_index - 1]*delta_t + ((delta_t*delta_t)/2.0)*(f[1]/target_particle.mass - I[1] + target_particle.mass*xi_t[particle_index][1]);
+        const double next_z = target_particle.z + target_particle.vz[step_index - 1]*delta_t + ((delta_t*delta_t)/2.0)*(f[2]/target_particle.mass - I[2] + target_particle.mass*xi_t[particle_index][2]);
+
+        return {next_x, next_y, next_z};
+    }
+
+    std::array<double,3> Simulator::calculate_velocity(Particle& target_particle,std::size_t particle_index, Particle& another_particle, NewParticle& new_particle, std::size_t step_index) noexcept {
+        //外力項
+        std::array<double,3> grad = grad_harmonic_potential(target_particle, another_particle);
+        std::array<double,3> next_grad = grad_harmonic_potential(target_particle, new_particle);
+        std::array<double,3> f = grad_to_force(grad);
+        std::array<double,3> next_f = grad_to_force(next_grad);
+
+        //摩擦項
+        std::array<double,3> I = calculate_friction(target_particle, step_index);
+        std::array<double,3> Iprime = calculate_Iprime(target_particle, step_index);
+
+        //更新後の速度を求める
+        double term1 = 1 - delta_t/2.0 + (delta_t/2.0)*(delta_t/2.0);
+        const double next_vx = term1 * (target_particle.vx[step_index - 1] + (delta_t/2.0)*(((f[0] + next_f[0])/target_particle.mass) - (I[0] + Iprime[0]) + (xi_t[particle_index][0] + xi_tph[particle_index][0])));
+        const double next_vy = term1 * (target_particle.vy[step_index - 1] + (delta_t/2.0)*(((f[1] + next_f[1])/target_particle.mass) - (I[1] + Iprime[1]) + (xi_t[particle_index][1] + xi_tph[particle_index][1])));
+        const double next_vz = term1 * (target_particle.vz[step_index - 1] + (delta_t/2.0)*(((f[2] + next_f[2])/target_particle.mass) - (I[2] + Iprime[2]) + (xi_t[particle_index][2] + xi_tph[particle_index][2])));
+
+        return {next_vx, next_vy, next_vz};
+    }
 }//generalized_langevin
 
 #endif
