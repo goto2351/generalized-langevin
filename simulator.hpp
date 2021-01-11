@@ -241,6 +241,14 @@ namespace generalized_langevin {
         return {grad_x, grad_y, grad_z};
     }
 
+    std::array<double,3> Simulator::grad_harmonic_potential(Particle& p1, NewParticle& p2) {
+        const double grad_x = p1.mass*omega*omega*(p1.x - p2.x);
+        const double grad_y = p1.mass*omega*omega*(p1.y - p2.y);
+        const double grad_z = p1.mass*omega*omega*(p1.z - p2.z);
+
+        return {grad_x, grad_y, grad_z};
+    }
+
     std::array<double,3> Simulator::grad_to_force(std::array<double,3> grad) {
         std::array<double,3> f;
         for (std::size_t index = 0; index <= 2; ++index) {
@@ -248,6 +256,72 @@ namespace generalized_langevin {
         }
 
         return f;
+    }
+
+    double Simulator::memory_func(double coefficient, double time) {
+        double res = std::exp(-1.0*coefficient*time);
+        return res;
+    }
+
+    std::array<double,3> Simulator::calculate_friction(Particle& p, std::size_t step_index) {
+        double time = static_cast<double>(step_index)*delta_t;
+        
+        double friction_x = 0.0;
+        for (std::size_t i = 0; i < step_index; ++i) {
+            double term1 = memory_func(memory_coefficient, time - static_cast<double>(i)*delta_t)*p.vx[i];
+            double term2 = memory_func(memory_coefficient, time - static_cast<double>(i + 1)*delta_t)*p.vx[i + 1];
+            friction_x += (term1 + term2)*(delta_t/2.0);
+        }
+
+        double friction_y = 0.0;
+        for (std::size_t i = 0; i < step_index; ++i) {
+            double term1 = memory_func(memory_coefficient, time - static_cast<double>(i)*delta_t)*p.vy[i];
+            double term2 = memory_func(memory_coefficient, time - static_cast<double>(i + 1)*delta_t)*p.vy[i + 1];
+            friction_y += (term1 + term2)*(delta_t/2.0);
+        }
+
+        double friction_z = 0.0;
+        for (std::size_t i = 0; i < step_index; ++i) {
+            double term1 = memory_func(memory_coefficient, time - static_cast<double>(i)*delta_t)*p.vz[i];
+            double term2 = memory_func(memory_coefficient, time - static_cast<double>(i + 1)*delta_t)*p.vz[i + 1];
+            friction_z += (term1 + term2)*(delta_t/2.0);
+        }
+
+        return {friction_x, friction_y, friction_z};
+    }
+
+    std::array<double,3> Simulator::calculate_Iprime(Particle& p, std::size_t step_index) {
+        double time = static_cast<double>(step_index + 1)*delta_t;
+        
+        double iprime_x = 0.0;
+        for (std::size_t i = 0; i < step_index; ++i) {
+            double term1 = memory_func(memory_coefficient, time - static_cast<double>(i)*delta_t)*p.vx[i];
+            double term2 = memory_func(memory_coefficient, time - static_cast<double>(i + 1)*delta_t)*p.vx[i + 1];
+            iprime_x += (term1 + term2)*(delta_t/2.0);
+        }
+
+        double iprime_y = 0.0;
+        for (std::size_t i = 0; i < step_index; ++i) {
+            double term1 = memory_func(memory_coefficient, time - static_cast<double>(i)*delta_t)*p.vy[i];
+            double term2 = memory_func(memory_coefficient, time - static_cast<double>(i + 1)*delta_t)*p.vy[i + 1];
+            iprime_x += (term1 + term2)*(delta_t/2.0);
+        }
+
+        double iprime_z = 0.0;
+        for (std::size_t i = 0; i < step_index; ++i) {
+            double term1 = memory_func(memory_coefficient, time - static_cast<double>(i)*delta_t)*p.vz[i];
+            double term2 = memory_func(memory_coefficient, time - static_cast<double>(i + 1)*delta_t)*p.vz[i + 1];
+            iprime_x += (term1 + term2)*(delta_t/2.0);
+        }
+
+        return {iprime_x, iprime_y, iprime_z};
+    }
+
+    void Simulator::write_coordinate() noexcept {
+        out << "2" <<std::endl;
+        out << std::endl;
+        out << "C " << particle1.x << " " << particle1.y << " " << particle1.z << std::endl;
+        out << "C " << particle2.x << " " << particle2.y << " " << particle2.z << std::endl;
     }
 
 }//generalized_langevin
