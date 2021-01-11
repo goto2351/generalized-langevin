@@ -134,7 +134,7 @@ namespace generalized_langevin {
         }
     }
 
-    NewParticle toNewParticle(Particle& p) {
+    NewParticle Simulator::toNewParticle(Particle& p) {
         NewParticle res;
         res.x = p.x;
         res.y = p.y;
@@ -147,7 +147,7 @@ namespace generalized_langevin {
         return res;
     }
 
-    void update_particle(Particle& target, NewParticle new_p, std::size_t step_index) {
+    void Simulator::update_particle(Particle& target, NewParticle new_p, std::size_t step_index) {
         target.x = new_p.x;
         target.y = new_p.y;
         target.z = new_p.z;
