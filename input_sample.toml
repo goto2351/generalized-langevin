@@ -1,0 +1,26 @@
+[meta_data]
+project_name = "test"
+working_path = "./output"
+random_seed = 12345678
+step_num = 10
+save_step_num = 2
+temperature = 300.0
+delta_t = 0.01
+
+[constants]
+friction_coefficient = 1.0
+memory_coefficient = 1.0
+K_b = 0.1380649
+omega = 0.5
+
+[particle1]
+mass = 1.0
+x = 0.0
+y = 0.0
+z = 0.0
+
+[particle2]
+mass = 1.0
+x = 1.5
+y = 1.0
+z = 0.5
