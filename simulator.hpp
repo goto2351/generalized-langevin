@@ -232,6 +232,24 @@ namespace generalized_langevin {
 
         return {next_vx, next_vy, next_vz};
     }
+
+    std::array<double,3> Simulator::grad_harmonic_potential(Particle& p1, Particle& p2) {
+        const double grad_x = p1.mass*omega*omega*(p1.x - p2.x);
+        const double grad_y = p1.mass*omega*omega*(p1.y - p2.y);
+        const double grad_z = p1.mass*omega*omega*(p1.z - p2.z);
+
+        return {grad_x, grad_y, grad_z};
+    }
+
+    std::array<double,3> Simulator::grad_to_force(std::array<double,3> grad) {
+        std::array<double,3> f;
+        for (std::size_t index = 0; index <= 2; ++index) {
+            f[index] = grad[index] * -1.0;
+        }
+
+        return f;
+    }
+
 }//generalized_langevin
 
 #endif
