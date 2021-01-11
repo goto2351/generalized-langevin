@@ -2,8 +2,8 @@
 project_name = "test"
 working_path = "./output"
 random_seed = 12345678
-step_num = 10
-save_step_num = 2
+step_num = 10000
+save_step_num = 10
 temperature = 300.0
 delta_t = 0.01
 
@@ -15,7 +15,7 @@ omega = 0.5
 
 [particle1]
 mass = 1.0
-x = 0.0
+x = -0.5
 y = 0.0
 z = 0.0
 
