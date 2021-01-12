@@ -3,3 +3,4 @@ toml11/
 .vscode/
 output/
 a.out
+input_sample2.toml

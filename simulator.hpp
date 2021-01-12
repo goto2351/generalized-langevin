@@ -225,10 +225,10 @@ namespace generalized_langevin {
         std::array<double,3> Iprime = calculate_Iprime(target_particle, step_index);
 
         //更新後の速度を求める
-        double term1 = 1 - delta_t/2.0 + (delta_t/2.0)*(delta_t/2.0);
-        const double next_vx = term1 * (target_particle.vx[step_index - 1] + (delta_t/2.0)*(((f[0] + next_f[0])/target_particle.mass) - (I[0] + Iprime[0]) + (xi_t[particle_index][0] + xi_tph[particle_index][0])));
-        const double next_vy = term1 * (target_particle.vy[step_index - 1] + (delta_t/2.0)*(((f[1] + next_f[1])/target_particle.mass) - (I[1] + Iprime[1]) + (xi_t[particle_index][1] + xi_tph[particle_index][1])));
-        const double next_vz = term1 * (target_particle.vz[step_index - 1] + (delta_t/2.0)*(((f[2] + next_f[2])/target_particle.mass) - (I[2] + Iprime[2]) + (xi_t[particle_index][2] + xi_tph[particle_index][2])));
+        double term1 = 1 - std::pow(delta_t/2.0, 2.0) + std::pow(delta_t/2.0, 4.0);
+        const double next_vx = term1 * (target_particle.vx[step_index - 1] + (delta_t/2.0)*(((f[0] + next_f[0])/target_particle.mass) - (I[0]*2.0 + memory_func(memory_coefficient, delta_t)*target_particle.vx[step_index]) + (xi_t[particle_index][0] + xi_tph[particle_index][0])));
+        const double next_vy = term1 * (target_particle.vy[step_index - 1] + (delta_t/2.0)*(((f[1] + next_f[1])/target_particle.mass) - (I[1]*2.0 + memory_func(memory_coefficient, delta_t)*target_particle.vy[step_index]) + (xi_t[particle_index][1] + xi_tph[particle_index][1])));
+        const double next_vz = term1 * (target_particle.vz[step_index - 1] + (delta_t/2.0)*(((f[2] + next_f[2])/target_particle.mass) - (I[2]*2.0 + memory_func(memory_coefficient, delta_t)*target_particle.vz[step_index]) + (xi_t[particle_index][2] + xi_tph[particle_index][2])));
 
         return {next_vx, next_vy, next_vz};
     }
